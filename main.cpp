@@ -19,6 +19,8 @@ QString errToStr(int err){
 			return "CL_INVALID_DEVICE_TYPE";
 		case CL_INVALID_PLATFORM:
 			return "CL_INVALID_PLATFORM";
+		case CL_INVALID_DEVICE:
+			return "CL_INVALID_DEVICE";
 		default:
 			return "qq";
 	}
