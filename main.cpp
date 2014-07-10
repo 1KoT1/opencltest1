@@ -9,6 +9,8 @@ QString errToStr(int err){
 			return "CL_SUCCESS";
 		case CL_DEVICE_NOT_FOUND:
 			return "CL_DEVICE_NOT_FOUND";
+		case CL_DEVICE_NOT_AVAILABLE:
+			return "CL_DEVICE_NOT_AVAILABLE";
 		case CL_OUT_OF_RESOURCES:
 			return "CL_OUT_OF_RESOURCES";
 		case CL_OUT_OF_HOST_MEMORY:
@@ -21,6 +23,8 @@ QString errToStr(int err){
 			return "CL_INVALID_PLATFORM";
 		case CL_INVALID_DEVICE:
 			return "CL_INVALID_DEVICE";
+		case CL_INVALID_PROPERTY:
+			return "CL_INVALID_PROPERTY";
 		default:
 			return "qq";
 	}
@@ -93,6 +97,28 @@ int main(int argc, char *argv[])
 			cl_device_type deviceType;
 			err = clGetDeviceInfo(*d, CL_DEVICE_TYPE, sizeof(deviceType), &deviceType, nullptr);
 			qDebug()<<errToStr(err)<<deviceTypeToStr(deviceType);
+			if(deviceType == CL_DEVICE_TYPE_GPU)
+			{
+				qDebug()<<QObject::trUtf8("Создаю контекст.");
+				auto ctx = clCreateContext(nullptr, 1, d, nullptr, nullptr, &err);
+				qDebug()<<errToStr(err);
+				if(err != CL_SUCCESS)
+					continue;
+
+				err = clRetainContext(ctx);
+				qDebug()<<errToStr(err);
+				if(err != CL_SUCCESS)
+					continue;
+			}
 		}
 	}
+
+	auto ctx2 = clCreateContextFromType(nullptr, CL_DEVICE_TYPE_GPU, nullptr, nullptr, &err);
+	qDebug()<<errToStr(err);
+	if(err != CL_SUCCESS)
+		return -1;
+	err = clRetainContext(ctx2);
+	qDebug()<<errToStr(err);
+
+	return 0;
 }
