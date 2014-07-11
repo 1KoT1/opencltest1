@@ -1,5 +1,7 @@
 #include <QDebug>
 #include <CL/opencl.h>
+#include <iostream>
+#include <fstream>
 
 using namespace std;
 
@@ -82,8 +84,22 @@ cl_device_id getDeviceByType(cl_device_type deviceType, int *err){
 	return nullptr;
 }
 
-int main(int argc, char *argv[])
-{
+string loadProgrammSource(string path){
+	string rez;
+	ifstream f(path);
+	if(f.fail())
+		return "";
+	string line;
+	while (!f.eof()){
+		getline(f, line);
+		if(f.fail())
+			return "";
+		rez.append(line).push_back('\n');
+	}
+	return rez;
+}
+
+int main(int argc, char *argv[]){
 	int err;
 	auto device = getDeviceByType(CL_DEVICE_TYPE_GPU, &err);
 	if(err != CL_SUCCESS)
@@ -94,10 +110,83 @@ int main(int argc, char *argv[])
 	if(err != CL_SUCCESS)
 		return -1;
 
+	auto commandQue = clCreateCommandQueue(ctx, device, 0, &err);
+	qDebug()<<errToStr(err);
+	if(err != CL_SUCCESS)
+		return -1;
+
+	int datacount = 5;
+	auto cmDevSrcA = clCreateBuffer(ctx, CL_MEM_READ_ONLY, sizeof(cl_float) * datacount, nullptr, &err);
+	qDebug()<<errToStr(err);
+	if(err != CL_SUCCESS)
+		return -1;
+	auto cmDevSrcB = clCreateBuffer(ctx, CL_MEM_READ_ONLY, sizeof(cl_float) * datacount, nullptr, &err);
+	qDebug()<<errToStr(err);
+	if(err != CL_SUCCESS)
+		return -1;
+	auto cmDevDst = clCreateBuffer(ctx, CL_MEM_WRITE_ONLY, sizeof(cl_float) * datacount, nullptr, &err);
+	qDebug()<<errToStr(err);
+	if(err != CL_SUCCESS)
+		return -1;
+
+	auto source = loadProgrammSource("./vectorAdd.cl");
+	qDebug()<<source.empty();
+	if(source.empty())
+		return -1;
+	cout<<source;
+
+	int numProgramm = 1;
+	char const *sources[numProgramm];
+	sources[0] = source.c_str();
+	size_t sourceslengs[numProgramm];
+	sourceslengs[0] = source.size();
+	cl_program prog = clCreateProgramWithSource(ctx, 1,sources, sourceslengs, &err);
+	qDebug()<<errToStr(err);
+	if(err != CL_SUCCESS)
+		return -1;
+
+	err = clBuildProgram(prog, 0, nullptr, nullptr, nullptr, nullptr);
+	qDebug()<<errToStr(err);
+	if(err != CL_SUCCESS)
+		return -1;
+
+	cl_kernel kernel = clCreateKernel(prog, "VectorAdd", &err);
+	qDebug()<<errToStr(err);
+	if(err != CL_SUCCESS)
+		return -1;
+
+	int argumentIndex = 0;
+	clSetKernelArg(kernel, argumentIndex++, sizeof(cl_mem), (void*)&cmDevSrcA);
+	clSetKernelArg(kernel, argumentIndex++, sizeof(cl_mem), (void*)&cmDevSrcB);
+	clSetKernelArg(kernel, argumentIndex++, sizeof(cl_mem), (void*)&cmDevDst);
+	clSetKernelArg(kernel, argumentIndex++, sizeof(cl_int), (void*)&datacount);
+
+	float srcA[] = {4, 4, 6, 9, 2};
+	float srcB[] = {9, 5, 9, 7, 6};
+
+	err = clEnqueueWriteBuffer(commandQue, cmDevSrcA, CL_FALSE, 0, sizeof(cl_float) * datacount, srcA, 0, nullptr, nullptr);
+	qDebug()<<errToStr(err);
+	if(err != CL_SUCCESS)
+		return -1;
+	err = clEnqueueWriteBuffer(commandQue, cmDevSrcB, CL_FALSE, 0, sizeof(cl_float) * datacount, srcB, 0, nullptr, nullptr);
+	qDebug()<<errToStr(err);
+	if(err != CL_SUCCESS)
+		return -1;
+
+	err = clRetainKernel(kernel);
+	qDebug()<<errToStr(err);
+	if(err != CL_SUCCESS)
+		return -1;
+
+	err = clReleaseProgram(prog);
+	qDebug()<<errToStr(err);
+	if(err != CL_SUCCESS)
+		return -1;
+
 	err = clRetainContext(ctx);
 	qDebug()<<errToStr(err);
 	if(err != CL_SUCCESS)
 		return -1;
 
-return 0;
+	return 0;
 }
