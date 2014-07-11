@@ -50,75 +50,54 @@ QString deviceTypeToStr(cl_device_type deviceType){
 	}
 }
 
-int main(int argc, char *argv[])
-{
-
-	qDebug()<<"qqq";
-
+cl_device_id getDeviceByType(cl_device_type deviceType, int *err){
 	uint num_platforms;
-	auto err = clGetPlatformIDs(0, nullptr, &num_platforms);
-	qDebug()<<errToStr(err)<<num_platforms;
-	if(err != CL_SUCCESS)
-		return -1;
+	*err = clGetPlatformIDs(0, nullptr, &num_platforms);
+	if(*err != CL_SUCCESS)
+		return nullptr;
 	cl_platform_id platform_ids[num_platforms];
-	err = clGetPlatformIDs(num_platforms, platform_ids, nullptr);
-	qDebug()<<errToStr(err);
-	if(err != CL_SUCCESS)
-		return -1;
+	*err = clGetPlatformIDs(num_platforms, platform_ids, nullptr);
+	if(*err != CL_SUCCESS)
+		return nullptr;
 	for (cl_platform_id* i = platform_ids; i < platform_ids + num_platforms; ++i) {
-		size_t platformProfileSize = 16;
-		char platformProfile[platformProfileSize];
-		err = clGetPlatformInfo(*i, CL_PLATFORM_PROFILE, platformProfileSize, platformProfile, nullptr);
-		qDebug()<<errToStr(err)<<platformProfile;
-
-		size_t platformVersionSize = 100;
-		char platformVersion[platformVersionSize];
-		err = clGetPlatformInfo(*i, CL_PLATFORM_VERSION, platformVersionSize, platformVersion, nullptr);
-		qDebug()<<errToStr(err)<<platformVersion;
-
-		size_t platformNameSize = 100;
-		char platformName[platformNameSize];
-		err = clGetPlatformInfo(*i, CL_PLATFORM_NAME, platformNameSize, platformName, nullptr);
-		qDebug()<<errToStr(err)<<platformName;
-
-		qDebug()<<QObject::trUtf8("Устройства");
 		uint numDevices;
-		err = clGetDeviceIDs(*i, CL_DEVICE_TYPE_ALL, 0, nullptr, &numDevices);
-		qDebug()<<errToStr(err)<<numDevices;
-		if(err != CL_SUCCESS)
+		*err = clGetDeviceIDs(*i, CL_DEVICE_TYPE_ALL, 0, nullptr, &numDevices);
+		if(*err != CL_SUCCESS)
 			continue;
 		cl_device_id deviceIds[numDevices];
-		err = clGetDeviceIDs(*i, CL_DEVICE_TYPE_ALL, numDevices, deviceIds, nullptr);
-		qDebug()<<errToStr(err);
-		if(err != CL_SUCCESS)
+		*err = clGetDeviceIDs(*i, CL_DEVICE_TYPE_ALL, numDevices, deviceIds, nullptr);
+		if(*err != CL_SUCCESS)
 			continue;
 
 		for (cl_device_id* d = deviceIds; d < deviceIds + numDevices; ++d) {
-			cl_device_type deviceType;
-			err = clGetDeviceInfo(*d, CL_DEVICE_TYPE, sizeof(deviceType), &deviceType, nullptr);
-			qDebug()<<errToStr(err)<<deviceTypeToStr(deviceType);
-			if(deviceType == CL_DEVICE_TYPE_GPU)
-			{
-				qDebug()<<QObject::trUtf8("Создаю контекст.");
-				auto ctx = clCreateContext(nullptr, 1, d, nullptr, nullptr, &err);
-				qDebug()<<errToStr(err);
-				if(err != CL_SUCCESS)
-					continue;
-
-				err = clRetainContext(ctx);
-				qDebug()<<errToStr(err);
-				if(err != CL_SUCCESS)
-					continue;
+			cl_device_type newDeviceType;
+			*err = clGetDeviceInfo(*d, CL_DEVICE_TYPE, sizeof(cl_device_type), &newDeviceType, nullptr);
+			if(deviceType == newDeviceType){
+				*err = CL_SUCCESS;
+				return *d;
 			}
 		}
 	}
+	*err = CL_DEVICE_NOT_FOUND;
+	return nullptr;
+}
 
-	auto ctx2 = clCreateContextFromType(nullptr, CL_DEVICE_TYPE_GPU, nullptr, nullptr, &err);
+int main(int argc, char *argv[])
+{
+	int err;
+	auto device = getDeviceByType(CL_DEVICE_TYPE_GPU, &err);
+	if(err != CL_SUCCESS)
+		return -1;
+
+	auto ctx = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &err);
 	qDebug()<<errToStr(err);
 	if(err != CL_SUCCESS)
 		return -1;
-	err = clRetainContext(ctx2);
-	qDebug()<<errToStr(err);
 
-	return 0;
+	err = clRetainContext(ctx);
+	qDebug()<<errToStr(err);
+	if(err != CL_SUCCESS)
+		return -1;
+
+return 0;
 }
