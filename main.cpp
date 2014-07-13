@@ -115,7 +115,7 @@ int main(int argc, char *argv[]){
 	if(err != CL_SUCCESS)
 		return -1;
 
-	int datacount = 5;
+	size_t datacount = 5;
 	auto cmDevSrcA = clCreateBuffer(ctx, CL_MEM_READ_ONLY, sizeof(cl_float) * datacount, nullptr, &err);
 	qDebug()<<errToStr(err);
 	if(err != CL_SUCCESS)
@@ -172,6 +172,20 @@ int main(int argc, char *argv[]){
 	qDebug()<<errToStr(err);
 	if(err != CL_SUCCESS)
 		return -1;
+
+	err = clEnqueueNDRangeKernel(commandQue, kernel, 1, nullptr, &datacount, nullptr, 0, nullptr, nullptr);
+	qDebug()<<errToStr(err);
+	if(err != CL_SUCCESS)
+		return -1;
+
+	float dst[datacount];
+	err = clEnqueueReadBuffer(commandQue, cmDevDst, CL_TRUE, 0, sizeof(cl_float) * datacount, dst, 0, nullptr, nullptr);
+	qDebug()<<errToStr(err);
+	if(err != CL_SUCCESS)
+		return -1;
+	for(auto i: dst){
+		qDebug()<<i;
+	}
 
 	err = clRetainKernel(kernel);
 	qDebug()<<errToStr(err);
